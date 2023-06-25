@@ -1,3 +1,1 @@
-# cdk
-
-test2
+# cdk-workshopをやるためのレポジトリ
