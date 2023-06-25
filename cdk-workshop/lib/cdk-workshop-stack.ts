@@ -1,36 +1,25 @@
-import { Duration, Stack, StackProps } from 'aws-cdk-lib';
-// AWS CDKの基本的なクラスと機能をインポートします。
-// StackはAWSリソースの集合を定義するクラス、
-// StackPropsはスタックのオプションやプロパティを定義するためのインターフェイス、
-// Durationは時間の長さを表現するためのユーティリティクラスです。
-import * as sns from 'aws-cdk-lib/aws-sns';
-// AWS SNSを操作するためのCDKのクラスと関数をインポートします。
-import * as subs from 'aws-cdk-lib/aws-sns-subscriptions';
-// SNSのサブスクリプションを管理するためのCDKのクラスと関数をインポートします。
-import * as sqs from 'aws-cdk-lib/aws-sqs';
-// AWS SQSを操作するためのCDKのクラスと関数をインポートします。
-import { Construct } from 'constructs';
-// ConstructはAWSのリソースなどのクラスのベースとなるクラスです。全てのCDKクラスはConstructを継承しています。
+import * as cdk from 'aws-cdk-lib';
+import * as lambda from 'aws-cdk-lib/aws-lambda';
+import * as apigw from 'aws-cdk-lib/aws-apigateway';
+import { HitCounter } from './hitcounter';
 
+export class CdkWorkshopStack extends cdk.Stack {
+  constructor(scope: cdk.App, id: string, props?: cdk.StackProps) {
+    super(scope, id, props);
 
-// CdkWorkshopStackという新しいクラスを定義します。
-// このクラスはStackクラスを継承しており、AWSのリソースの集合を定義します。
-export class CdkWorkshopStack extends Stack {
-  constructor(scope: Construct, id: string, props?: StackProps) { // スタックのコンストラクタ。スタックが作られるときに呼ばれます。
-    super(scope, id, props);  // スコープ（親コンストラクト）、ID、プロパティを引数にとります。
-
-    // 新しいSQSキューを作成します。
-    // 'CdkWorkshopQueue'はこのキューの一意な識別子で、
-    // visibilityTimeoutはメッセージがキューに入ってから消費されるまでの時間を定義します。
-    const queue = new sqs.Queue(this, 'CdkWorkshopQueue', {
-      visibilityTimeout: Duration.seconds(300)
+    const hello = new lambda.Function(this, 'HelloHandler', {
+      runtime: lambda.Runtime.NODEJS_14_X,
+      code: lambda.Code.fromAsset('lambda'),
+      handler: 'hello.handler'
     });
-    
-    // 新しいSNSトピックを作成します。'CdkWorkshopTopic'はこのトピックの一意な識別子です。
-    const topic = new sns.Topic(this, 'CdkWorkshopTopic');
-    
-    // 作成したSNSトピックに、作成したSQSキューをサブスクリプションとして追加します。
-    // これにより、トピックにメッセージが投稿されると、そのメッセージがSQSキューに自動的に送られるようになります。
-    topic.addSubscription(new subs.SqsSubscription(queue));
-    }
+
+    const helloWithCounter = new HitCounter(this, 'HelloHitCounter', {
+      downstream: hello
+    });
+
+    // defines an API Gateway REST API resource backed by our "hello" function.
+    new apigw.LambdaRestApi(this, 'Endpoint', {
+      handler: helloWithCounter.handler
+    });
+  }
 }
